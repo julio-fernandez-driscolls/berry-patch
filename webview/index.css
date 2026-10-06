@@ -1,0 +1,191 @@
+@import "tailwindcss" source(".");
+
+/* Official Driscoll's palette, taken from the driscolls.com design tokens. */
+:root {
+  --driscolls-green: #4a773c;
+  --driscolls-green-600: #325a26;
+  --strawberry-red: #da291c;
+  --raspberry-pink: #c63663;
+  --blackberry-purple: #6f5091;
+  --blueberry-blue: #0076a5;
+  --organic-green: #a5d335;
+  --sun-yellow: #fdc41f;
+  --natural-white: #fbf6ea;
+}
+
+/* Map Tailwind colors onto the active VS Code theme so the panel matches light, dark and high-contrast themes. */
+@theme {
+  --color-bg: var(--vscode-editor-background);
+  --color-fg: var(--vscode-editor-foreground);
+  --color-muted: var(--vscode-descriptionForeground);
+  --color-border: var(--vscode-panel-border, var(--vscode-widget-border));
+  --color-card: var(--vscode-sideBar-background, var(--vscode-editor-background));
+  --color-hover: var(--vscode-list-hoverBackground);
+  --color-selected: var(--vscode-list-inactiveSelectionBackground);
+  --color-accent: var(--vscode-button-background);
+  --color-accent-fg: var(--vscode-button-foreground);
+  --color-accent-hover: var(--vscode-button-hoverBackground);
+  --color-secondary: var(--vscode-button-secondaryBackground);
+  --color-secondary-fg: var(--vscode-button-secondaryForeground);
+  --color-secondary-hover: var(--vscode-button-secondaryHoverBackground);
+  --color-link: var(--vscode-textLink-foreground);
+  --color-input: var(--vscode-input-background);
+  --color-input-fg: var(--vscode-input-foreground);
+  --color-input-border: var(--vscode-input-border, var(--vscode-panel-border));
+  --color-focus: var(--vscode-focusBorder);
+  --color-error: var(--vscode-errorForeground);
+  --color-badge: var(--vscode-badge-background);
+  --color-badge-fg: var(--vscode-badge-foreground);
+  --color-code: var(--vscode-textCodeBlock-background);
+
+  --color-critical: var(--vscode-charts-red);
+  --color-major: var(--vscode-charts-orange);
+  --color-minor: var(--vscode-charts-yellow);
+  --color-nit: var(--vscode-charts-blue);
+  --color-ok: var(--vscode-charts-green);
+  --color-comment: var(--vscode-charts-purple);
+
+  --color-wordmark: var(--vscode-editor-foreground);
+  --color-ready: var(--vscode-charts-green);
+  --color-strawberry: var(--strawberry-red);
+  --color-raspberry: var(--raspberry-pink);
+  --color-blackberry: var(--blackberry-purple);
+  --color-blueberry: var(--blueberry-blue);
+
+  --font-sans: var(--vscode-font-family);
+  --font-mono: var(--vscode-editor-font-family);
+  /* Gelica is Driscoll's headline face; Georgia is the closest widely installed fallback. */
+  --font-brand: Gelica, Georgia, "Times New Roman", serif;
+}
+
+/* Brand colours on regular themes. High-contrast themes keep VS Code's palette above.
+   Severity/verdict tints are darker (light) or lighter (dark) berry shades so pill text stays WCAG AA. */
+body.vscode-light {
+  --color-accent: var(--driscolls-green);
+  --color-accent-fg: #fff;
+  --color-accent-hover: var(--driscolls-green-600);
+  --color-wordmark: var(--driscolls-green);
+  --color-ready: var(--driscolls-green);
+  --color-critical: #a01308;
+  --color-major: #af234d;
+  --color-minor: #83580c;
+  --color-nit: #00577a;
+  --color-ok: var(--driscolls-green-600);
+  --color-comment: #54327b;
+}
+
+body.vscode-dark {
+  --color-accent: var(--driscolls-green);
+  --color-accent-fg: #fff;
+  --color-accent-hover: var(--driscolls-green-600);
+  --color-wordmark: var(--natural-white);
+  --color-ready: var(--organic-green);
+  --color-critical: #fc8d7c;
+  --color-major: #fd87a2;
+  --color-minor: var(--sun-yellow);
+  --color-nit: #5ab6e8;
+  --color-ok: var(--organic-green);
+  --color-comment: #c0a0e7;
+  --color-strawberry: #fc8d7c;
+  --color-raspberry: #fd87a2;
+  --color-blackberry: #c0a0e7;
+  --color-blueberry: #5ab6e8;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  background: var(--color-bg);
+  color: var(--color-fg);
+  font-family: var(--font-sans);
+  font-size: var(--vscode-font-size, 13px);
+}
+
+:focus-visible {
+  outline: 1px solid var(--color-focus);
+  outline-offset: 1px;
+}
+
+.berry-stripe {
+  height: 3px;
+  background: linear-gradient(
+    90deg,
+    var(--strawberry-red) 0 25%,
+    var(--raspberry-pink) 25% 50%,
+    var(--blackberry-purple) 50% 75%,
+    var(--blueberry-blue) 75%
+  );
+}
+
+/* Loading indicator: the "Driscoll's Dot" hopping through the berry palette. */
+@keyframes berry-hop {
+  0%,
+  80%,
+  100% {
+    transform: scale(0.6);
+    opacity: 0.55;
+  }
+  40% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+.berry-dots > span {
+  animation: berry-hop 1.2s ease-in-out infinite;
+}
+.berry-dots > span:nth-child(2) {
+  animation-delay: 0.15s;
+}
+.berry-dots > span:nth-child(3) {
+  animation-delay: 0.3s;
+}
+.berry-dots > span:nth-child(4) {
+  animation-delay: 0.45s;
+}
+@media (prefers-reduced-motion: reduce) {
+  .berry-dots > span {
+    animation: none;
+  }
+}
+body.vscode-reduce-motion .berry-dots > span {
+  animation: none;
+}
+
+/* Rendered Markdown from Codex's review. */
+.md > * + * {
+  margin-top: 0.5rem;
+}
+.md a {
+  color: var(--color-link);
+}
+.md code {
+  font-family: var(--font-mono);
+  font-size: 0.92em;
+  background: var(--color-code);
+  padding: 0.05rem 0.3rem;
+  border-radius: 3px;
+}
+.md pre {
+  background: var(--color-code);
+  padding: 0.6rem 0.75rem;
+  border-radius: 4px;
+  overflow-x: auto;
+}
+.md pre code {
+  background: none;
+  padding: 0;
+}
+.md ul {
+  list-style: disc;
+  padding-left: 1.25rem;
+}
+.md ol {
+  list-style: decimal;
+  padding-left: 1.25rem;
+}

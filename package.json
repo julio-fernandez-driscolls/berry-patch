@@ -1,0 +1,155 @@
+{
+  "name": "driscolls-berry-patch",
+  "displayName": "Driscoll's Berry Patch",
+  "description": "Pick the GitHub pull requests waiting on you and review them with Codex. Only the finest patches make it to main.",
+  "version": "0.1.0",
+  "publisher": "driscolls",
+  "private": true,
+  "icon": "media/icon.png",
+  "galleryBanner": {
+    "color": "#FFCD00",
+    "theme": "light"
+  },
+  "engines": {
+    "vscode": "^1.90.0"
+  },
+  "categories": [
+    "AI",
+    "Other"
+  ],
+  "keywords": [
+    "driscolls",
+    "berry patch",
+    "pull request",
+    "code review",
+    "codex",
+    "github"
+  ],
+  "main": "./dist/extension.js",
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "contributes": {
+    "commands": [
+      {
+        "command": "prReviewer.open",
+        "title": "Open",
+        "category": "Driscoll's Berry Patch",
+        "icon": "$(berry-patch-strawberry)"
+      },
+      {
+        "command": "prReviewer.refresh",
+        "title": "Refresh Pull Requests",
+        "category": "Driscoll's Berry Patch",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "prReviewer.connectCodex",
+        "title": "Connect Codex (Sign in with ChatGPT)",
+        "category": "Driscoll's Berry Patch"
+      },
+      {
+        "command": "prReviewer.selectEngine",
+        "title": "Select Review Engine",
+        "category": "Driscoll's Berry Patch"
+      }
+    ],
+    "icons": {
+      "berry-patch-strawberry": {
+        "description": "Driscoll's Berry Patch strawberry",
+        "default": {
+          "fontPath": "./media/berry-patch-icons.woff",
+          "fontCharacter": "\\E001"
+        }
+      }
+    },
+    "configuration": {
+      "title": "Driscoll's Berry Patch",
+      "properties": {
+        "prReviewer.engine": {
+          "type": "string",
+          "enum": [
+            "copilot",
+            "codex"
+          ],
+          "enumDescriptions": [
+            "Use the GitHub Copilot access this editor already has. No extra sign-in.",
+            "Use a Codex CLI you provide, including a private or self-hosted build."
+          ],
+          "default": "copilot",
+          "description": "Which engine reviews pull requests."
+        },
+        "prReviewer.copilotModel": {
+          "type": "string",
+          "default": "",
+          "markdownDescription": "Copilot model family to review with, for example `gpt-4o`. Leave empty to use the first model Copilot offers."
+        },
+        "prReviewer.pollIntervalMinutes": {
+          "type": "number",
+          "default": 10,
+          "minimum": 0,
+          "markdownDescription": "How often, in minutes, to check GitHub for pull requests waiting on you. Set to `0` to turn off background checks."
+        },
+        "prReviewer.includeReviewRequested": {
+          "type": "boolean",
+          "default": true,
+          "description": "Include pull requests where your review is requested."
+        },
+        "prReviewer.includeAssigned": {
+          "type": "boolean",
+          "default": true,
+          "description": "Include pull requests assigned to you."
+        },
+        "prReviewer.codexModel": {
+          "type": "string",
+          "default": "",
+          "description": "Codex model used for reviews. Leave empty to use Codex's default model."
+        },
+        "prReviewer.codexEffort": {
+          "type": "string",
+          "enum": [
+            "low",
+            "medium",
+            "high",
+            "xhigh"
+          ],
+          "default": "high",
+          "description": "Reasoning effort Codex spends on each review."
+        },
+        "prReviewer.reviewInstructions": {
+          "type": "string",
+          "default": "",
+          "editPresentation": "multilineText",
+          "description": "Team-specific guidance added to every review prompt."
+        },
+        "prReviewer.codexPath": {
+          "type": "string",
+          "default": "",
+          "scope": "machine",
+          "markdownDescription": "Path to a Codex executable, including a private or self-hosted build. Leave empty to use the Codex bundled with the ChatGPT extension (`openai.chatgpt`), or `codex` on your PATH."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "build": "npm run build:extension && npm run build:webview",
+    "build:extension": "esbuild src/extension.ts --bundle --platform=node --format=cjs --target=node20 --external:vscode --minify --outfile=dist/extension.js",
+    "build:webview": "esbuild webview/main.tsx --bundle --platform=browser --format=esm --target=chrome120 --jsx=automatic --loader:.css=empty --loader:.svg=text --minify --outfile=dist/webview/webview.js && tailwindcss -i webview/index.css -o dist/webview/webview.css --minify",
+    "typecheck": "tsc --noEmit --strict --skipLibCheck --target es2022 --module esnext --moduleResolution bundler --jsx react-jsx --lib es2022,dom,dom.iterable src/extension.ts webview/main.tsx webview/env.d.ts",
+    "test": "node --test tests/"
+  },
+  "devDependencies": {
+    "@tailwindcss/cli": "^4.3.3",
+    "@types/node": "^20.19.43",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@types/vscode": "~1.90.0",
+    "esbuild": "^0.28.2",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
+    "react-markdown": "^10.1.0",
+    "tailwindcss": "^4.3.3",
+    "typescript": "^5.9.3",
+    "zod": "^4.6.5"
+  }
+}
