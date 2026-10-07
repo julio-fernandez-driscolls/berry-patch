@@ -112,15 +112,22 @@ body {
   outline-offset: 1px;
 }
 
-.berry-stripe {
-  height: 3px;
+.berry-stripe,
+.berry-stripe-v {
   background: linear-gradient(
-    90deg,
+    var(--berry-angle, 90deg),
     var(--strawberry-red) 0 25%,
     var(--raspberry-pink) 25% 50%,
     var(--blackberry-purple) 50% 75%,
     var(--blueberry-blue) 75%
   );
+}
+.berry-stripe {
+  height: 3px;
+}
+.berry-stripe-v {
+  --berry-angle: 180deg;
+  width: 3px;
 }
 
 /* Loading indicator: the "Driscoll's Dot" hopping through the berry palette. */

@@ -1,5 +1,11 @@
 import { useEffect, useMemo, useReducer, useState } from "react";
-import type { EngineState, HostToWebview, PullRequestSummary, ReviewResult } from "../src/shared/protocol";
+import type {
+  EngineState,
+  HostToWebview,
+  PullRequestSummary,
+  RepoGuideline,
+  ReviewResult,
+} from "../src/shared/protocol";
 import { Button, Spinner } from "./components/ui";
 import { BerryPatchWelcome, DriscollsWordmark } from "./components/Brand";
 import { EngineBar } from "./components/EngineBar";
@@ -21,6 +27,8 @@ interface State {
   error: string | null;
   reviews: Record<string, ReviewResult>;
   jobs: Record<string, ReviewJob>;
+  /** Null until the host reports it, so repos don't flash the "add guidelines" prompt on load. */
+  guidelines: Record<string, RepoGuideline | null> | null;
 }
 
 const initial: State = {
@@ -32,6 +40,7 @@ const initial: State = {
   error: null,
   reviews: {},
   jobs: {},
+  guidelines: null,
 };
 
 function reducer(state: State, msg: HostToWebview): State {
@@ -59,6 +68,8 @@ function reducer(state: State, msg: HostToWebview): State {
       if (!review) return state;
       return { ...state, reviews: { ...state.reviews, [msg.prKey]: { ...review, postedUrl: msg.url } } };
     }
+    case "guidelines":
+      return { ...state, guidelines: msg.guidelines };
   }
 }
 
@@ -126,6 +137,7 @@ export function App() {
               pr={selected}
               review={state.reviews[selected.key]}
               job={state.jobs[selected.key]}
+              guidelines={state.guidelines}
               engineLabel={engineLabel}
               onBack={() => setSelectedKey(null)}
             />

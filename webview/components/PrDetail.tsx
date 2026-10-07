@@ -2,13 +2,15 @@ import { useMemo, useState } from "react";
 import type {
   Finding,
   PullRequestSummary,
+  RepoGuideline,
   ReviewEvent,
   ReviewResult,
   Severity,
 } from "../../src/shared/protocol";
 import type { ReviewJob } from "../App";
 import { send, timeAgo } from "../vscode";
-import { Button, Chevron, Md, Pill, SeverityPill, Spinner, VerdictPill } from "./ui";
+import { RepoGuidelines } from "./Guidelines";
+import { Button, Chevron, DocIcon, Md, Pill, SeverityPill, Spinner, VerdictPill } from "./ui";
 
 const SEVERITIES: Severity[] = ["critical", "major", "minor", "nit"];
 
@@ -16,12 +18,14 @@ interface Props {
   pr: PullRequestSummary;
   review?: ReviewResult;
   job?: ReviewJob;
+  guidelines: Record<string, RepoGuideline | null> | null;
   engineLabel: string;
   onBack: () => void;
 }
 
-export function PrDetail({ pr, review, job, engineLabel, onBack }: Props) {
+export function PrDetail({ pr, review, job, guidelines, engineLabel, onBack }: Props) {
   const running = Boolean(job && !job.error);
+  const repo = `${pr.owner}/${pr.repo}`;
 
   return (
     <div className="min-h-0 flex-1 overflow-y-auto">
@@ -43,6 +47,7 @@ export function PrDetail({ pr, review, job, engineLabel, onBack }: Props) {
             ))}
           </div>
         )}
+        {guidelines && <RepoGuidelines repo={repo} name={pr.repo} guideline={guidelines[repo]} />}
         <div className="mt-3 flex flex-wrap items-center gap-2">
           {running ? (
             <Button variant="secondary" onClick={() => send({ type: "cancelReview", prKey: pr.key })}>
@@ -119,6 +124,12 @@ function ReviewBody({ pr, review }: { pr: PullRequestSummary; review: ReviewResu
         <div className="mb-2 flex flex-wrap items-center gap-2">
           <h3 className="text-xs font-semibold tracking-wide uppercase text-muted">Summary</h3>
           <VerdictPill verdict={review.verdict} />
+          {review.guideline && (
+            <Pill className="gap-1 border border-border text-muted" title={`Reviewed against ${review.guideline}`}>
+              <DocIcon className="size-3" />
+              {review.guideline}
+            </Pill>
+          )}
           <span className="text-[11px] text-muted">
             {review.model} · {timeAgo(review.reviewedAt)} ·{" "}
             {(review.usage.inputTokens + review.usage.outputTokens).toLocaleString()} tokens

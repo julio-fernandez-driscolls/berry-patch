@@ -16,6 +16,12 @@ Pick the GitHub pull requests waiting on you and review them with Codex. Only th
 - Reviews run on GitHub Copilot by default. To use Codex instead, run
   **Driscoll's Berry Patch: Select Review Engine** and pick Codex.
 
+## Review guidelines
+
+Each repository can have its own guideline file: coding standards, required patterns, security rules, or what makes a PR acceptable. Open any PR from that repo and choose **Choose file…** in the "Add review guidelines" card. Any plain-text file up to 64 KB works, whatever its name or extension.
+
+The file is read fresh on every review, so edits apply to the next run. Guideline choices are stored per machine, so each teammate picks their own copy.
+
 ## Settings
 
 All settings live under `prReviewer.*` in Settings. The ones worth knowing:

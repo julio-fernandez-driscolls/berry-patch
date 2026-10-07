@@ -30,6 +30,15 @@ export interface EngineState {
   statuses: EngineStatus[];
 }
 
+/** A repository's review guideline file, as shown in the panel. */
+export interface RepoGuideline {
+  name: string;
+  /** Full path, for tooltips. */
+  path: string;
+  /** False when the file has been moved or deleted since it was chosen. */
+  found: boolean;
+}
+
 export interface PullRequestSummary {
   /** Stable key: "owner/repo#number". */
   key: string;
@@ -69,6 +78,8 @@ export interface ReviewResult {
   model: string;
   /** Absent on reviews saved before engines were selectable. */
   engine?: EngineId;
+  /** File name of the repository guidelines the review followed, if any. */
+  guideline?: string;
   summary: string;
   verdict: Verdict;
   findings: Finding[];
@@ -87,7 +98,9 @@ export type HostToWebview =
   | { type: "reviewProgress"; prKey: string; stage: string }
   | { type: "reviewDone"; review: ReviewResult }
   | { type: "reviewFailed"; prKey: string; message: string }
-  | { type: "reviewPosted"; prKey: string; url: string };
+  | { type: "reviewPosted"; prKey: string; url: string }
+  // Keyed by "owner/repo". `null` means the user chose to review that repo without guidelines.
+  | { type: "guidelines"; guidelines: Record<string, RepoGuideline | null> };
 
 export type WebviewToHost =
   | { type: "ready" }
@@ -100,6 +113,9 @@ export type WebviewToHost =
   | { type: "cancelReview"; prKey: string }
   | { type: "openExternal"; url: string }
   | { type: "openFile"; file: string; line: number | null }
+  | { type: "chooseGuideline"; repo: string }
+  | { type: "openGuideline"; repo: string }
+  | { type: "clearGuideline"; repo: string }
   | {
       type: "postReview";
       prKey: string;

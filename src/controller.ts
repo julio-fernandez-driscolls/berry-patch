@@ -3,6 +3,7 @@ import { codexRunner } from "./codex";
 import { copilotRunner, copilotStatus } from "./copilot";
 import * as vscode from "vscode";
 import { GitHubClient, type ReviewComment } from "./github";
+import { GuidelineStore } from "./guidelines";
 import { ReviewPanel } from "./panel";
 import { reviewPullRequest, type ReviewRunner } from "./reviewer";
 import type {
@@ -28,10 +29,12 @@ export class PrReviewController implements vscode.Disposable {
   private user: string | null = null;
   private readonly inFlight = new Map<string, AbortController>();
   private readonly statusBar: vscode.StatusBarItem;
+  private readonly guidelines: GuidelineStore;
   private readonly disposables: vscode.Disposable[] = [];
   private pollTimer: ReturnType<typeof setInterval> | undefined;
 
   constructor(private readonly context: vscode.ExtensionContext) {
+    this.guidelines = new GuidelineStore(context.globalState);
     this.statusBar = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 50);
     this.statusBar.name = "Driscoll's Berry Patch";
     this.statusBar.command = "prReviewer.open";
@@ -126,6 +129,8 @@ export class PrReviewController implements vscode.Disposable {
   private async onMessage(msg: WebviewToHost): Promise<void> {
     switch (msg.type) {
       case "ready":
+        // Before engine state, which can take seconds to probe Codex.
+        await this.pushGuidelines();
         await this.pushState();
         this.post({ type: "reviews", reviews: this.savedReviews() });
         if (this.prs.length) this.post({ type: "prs", prs: this.prs, fetchedAt: this.fetchedAt });
@@ -157,6 +162,15 @@ export class PrReviewController implements vscode.Disposable {
         return;
       case "openFile":
         return this.openFile(msg.file, msg.line);
+      case "chooseGuideline":
+        await this.guidelines.choose(msg.repo);
+        return this.pushGuidelines();
+      case "openGuideline":
+        await this.guidelines.open(msg.repo);
+        return this.pushGuidelines();
+      case "clearGuideline":
+        await this.guidelines.clear(msg.repo);
+        return this.pushGuidelines();
       case "postReview":
         return this.postReview(msg.prKey, msg.event, msg.body, msg.findingIds);
     }
@@ -171,6 +185,7 @@ export class PrReviewController implements vscode.Disposable {
     const progress = (stage: string) => this.post({ type: "reviewProgress", prKey, stage });
 
     try {
+      const guidelines = await this.guidelines.read(`${pr.owner}/${pr.repo}`);
       const gh = await this.github(true);
       if (!gh) throw new Error("Not signed in to GitHub.");
       progress("Fetching pull request diff…");
@@ -185,6 +200,7 @@ export class PrReviewController implements vscode.Disposable {
         engine,
         run: this.runner(engine),
         extraInstructions: cfg.get("reviewInstructions", ""),
+        guidelines,
         signal: abort.signal,
         onProgress: progress,
       });
@@ -193,6 +209,8 @@ export class PrReviewController implements vscode.Disposable {
     } catch (err) {
       const message = abort.signal.aborted ? "Review cancelled." : errorMessage(err);
       this.post({ type: "reviewFailed", prKey, message });
+      // The guideline file may be why it failed; refresh its status in the panel.
+      void this.pushGuidelines();
     } finally {
       this.inFlight.delete(prKey);
     }
@@ -293,6 +311,10 @@ export class PrReviewController implements vscode.Disposable {
 
   private async pushState(): Promise<void> {
     this.post({ type: "state", user: this.user, engines: await this.engineState() });
+  }
+
+  private async pushGuidelines(): Promise<void> {
+    this.post({ type: "guidelines", guidelines: await this.guidelines.all() });
   }
 
   private engine(): EngineId {

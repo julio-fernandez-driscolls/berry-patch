@@ -32,11 +32,32 @@ export function Spinner({ className = "" }: { className?: string }) {
   );
 }
 
-export function Pill({ children, className = "" }: { children: ReactNode; className?: string }) {
+export function Pill({ children, className = "", title }: { children: ReactNode; className?: string; title?: string }) {
   return (
-    <span className={`inline-flex items-center rounded-full px-1.5 py-px text-[10px] leading-4 font-medium whitespace-nowrap ${className}`}>
+    <span
+      title={title}
+      className={`inline-flex items-center rounded-full px-1.5 py-px text-[10px] leading-4 font-medium whitespace-nowrap ${className}`}
+    >
       {children}
     </span>
+  );
+}
+
+export function DocIcon({ className = "" }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 16 16"
+      aria-hidden="true"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.3"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={`shrink-0 ${className}`}
+    >
+      <path d="M9.5 1.75H4.25a1 1 0 0 0-1 1v10.5a1 1 0 0 0 1 1h7.5a1 1 0 0 0 1-1V5z" />
+      <path d="M9.5 1.75V5h3.25M5.75 8.25h4.5M5.75 10.75h3" />
+    </svg>
   );
 }
 
