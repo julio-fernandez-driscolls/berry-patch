@@ -2,7 +2,7 @@
   "name": "driscolls-berry-patch",
   "displayName": "Driscoll's Berry Patch",
   "description": "Pick the GitHub pull requests waiting on you and review them with Codex. Only the finest patches make it to main.",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "publisher": "driscolls",
   "private": true,
   "icon": "media/icon.png",
