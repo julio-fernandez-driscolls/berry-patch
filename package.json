@@ -136,7 +136,8 @@
     "build:extension": "esbuild src/extension.ts --bundle --platform=node --format=cjs --target=node20 --external:vscode --minify --outfile=dist/extension.js",
     "build:webview": "esbuild webview/main.tsx --bundle --platform=browser --format=esm --target=chrome120 --jsx=automatic --loader:.css=empty --loader:.svg=text --minify --outfile=dist/webview/webview.js && tailwindcss -i webview/index.css -o dist/webview/webview.css --minify",
     "typecheck": "tsc --noEmit --strict --skipLibCheck --target es2022 --module esnext --moduleResolution bundler --jsx react-jsx --lib es2022,dom,dom.iterable src/extension.ts webview/main.tsx webview/env.d.ts",
-    "test": "node --test tests/"
+    "test": "node --test tests/",
+    "package": "npm run build && vsce package --allow-missing-repository"
   },
   "devDependencies": {
     "@tailwindcss/cli": "^4.3.3",
@@ -144,6 +145,7 @@
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
     "@types/vscode": "~1.90.0",
+    "@vscode/vsce": "^3.6.0",
     "esbuild": "^0.28.2",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",

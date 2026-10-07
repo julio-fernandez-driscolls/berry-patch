@@ -8,7 +8,7 @@ import type {
 } from "../../src/shared/protocol";
 import type { ReviewJob } from "../App";
 import { send, timeAgo } from "../vscode";
-import { Button, Md, Pill, SeverityPill, Spinner, VerdictPill } from "./ui";
+import { Button, Chevron, Md, Pill, SeverityPill, Spinner, VerdictPill } from "./ui";
 
 const SEVERITIES: Severity[] = ["critical", "major", "minor", "nit"];
 
@@ -85,6 +85,8 @@ function ReviewBody({ pr, review }: { pr: PullRequestSummary; review: ReviewResu
   const [selected, setSelected] = useState<Set<string>>(
     () => new Set(review.findings.filter((f) => f.severity !== "nit").map((f) => f.id)),
   );
+  // Tracks the collapsed ones so findings start expanded.
+  const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
 
   const counts = useMemo(() => {
     const c: Record<Severity, number> = { critical: 0, major: 0, minor: 0, nit: 0 };
@@ -102,6 +104,14 @@ function ReviewBody({ pr, review }: { pr: PullRequestSummary; review: ReviewResu
     else next.add(value);
     return next;
   };
+
+  const allCollapsed = visible.length > 0 && visible.every((f) => collapsed.has(f.id));
+  const toggleAll = () =>
+    setCollapsed((c) => {
+      const next = new Set(c);
+      visible.forEach((f) => (allCollapsed ? next.delete(f.id) : next.add(f.id)));
+      return next;
+    });
 
   return (
     <div className="space-y-5 px-5 py-4">
@@ -146,6 +156,14 @@ function ReviewBody({ pr, review }: { pr: PullRequestSummary; review: ReviewResu
               </button>
             ))}
           </div>
+          {visible.length > 1 && (
+            <button
+              onClick={toggleAll}
+              className="ml-auto cursor-pointer text-[11px] text-link hover:underline"
+            >
+              {allCollapsed ? "Expand all" : "Collapse all"}
+            </button>
+          )}
         </div>
 
         {review.findings.length === 0 && <p className="text-xs text-muted">No issues found.</p>}
@@ -156,6 +174,8 @@ function ReviewBody({ pr, review }: { pr: PullRequestSummary; review: ReviewResu
               finding={f}
               checked={selected.has(f.id)}
               onToggle={() => setSelected((s) => toggle(s, f.id))}
+              expanded={!collapsed.has(f.id)}
+              onToggleExpanded={() => setCollapsed((c) => toggle(c, f.id))}
             />
           ))}
         </ul>
@@ -170,10 +190,14 @@ function FindingCard({
   finding: f,
   checked,
   onToggle,
+  expanded,
+  onToggleExpanded,
 }: {
   finding: Finding;
   checked: boolean;
   onToggle: () => void;
+  expanded: boolean;
+  onToggleExpanded: () => void;
 }) {
   const location = f.file ? `${f.file}${f.line ? `:${f.line}` : ""}` : "PR-level";
   return (
@@ -207,17 +231,29 @@ function FindingCard({
               </span>
             )}
           </div>
-          <p className="mt-1.5 text-[13px] font-medium">{f.title}</p>
-          <div className="mt-1 text-xs">
-            <Md>{f.explanation}</Md>
-          </div>
-          {f.suggestion && (
-            <details className="mt-2 text-xs" open>
-              <summary className="cursor-pointer text-muted">Suggested fix</summary>
-              <div className="mt-1">
-                <Md>{f.suggestion}</Md>
+          <button
+            onClick={onToggleExpanded}
+            aria-expanded={expanded}
+            title={expanded ? "Collapse details" : "Expand details"}
+            className="mt-1.5 flex w-full cursor-pointer items-start gap-1.5 text-left text-[13px] font-medium"
+          >
+            <Chevron open={expanded} className="mt-[3px] text-muted" />
+            <span className="min-w-0 flex-1">{f.title}</span>
+          </button>
+          {expanded && (
+            <div className="pl-[18px]">
+              <div className="mt-1 text-xs">
+                <Md>{f.explanation}</Md>
               </div>
-            </details>
+              {f.suggestion && (
+                <details className="mt-2 text-xs" open>
+                  <summary className="cursor-pointer text-muted">Suggested fix</summary>
+                  <div className="mt-1">
+                    <Md>{f.suggestion}</Md>
+                  </div>
+                </details>
+              )}
+            </div>
           )}
         </div>
       </div>
