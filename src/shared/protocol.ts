@@ -99,6 +99,7 @@ export type HostToWebview =
   | { type: "reviewDone"; review: ReviewResult }
   | { type: "reviewFailed"; prKey: string; message: string }
   | { type: "reviewPosted"; prKey: string; url: string }
+  | { type: "postState"; prKey: string; posting: boolean }
   // Keyed by "owner/repo". `null` means the user chose to review that repo without guidelines.
   | { type: "guidelines"; guidelines: Record<string, RepoGuideline | null> };
 

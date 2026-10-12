@@ -23,7 +23,7 @@ export function RepoGuidelines({ repo, name, guideline }: Props) {
         className="relative mt-3 overflow-hidden rounded-sm border border-border bg-card py-3 pr-3 pl-4"
       >
         <span aria-hidden="true" className="berry-stripe-v absolute inset-y-0 left-0" />
-        <h3 className="font-brand text-[15px] leading-snug text-wordmark">Add review guidelines for {name}?</h3>
+        <h3 className="text-[13px] font-semibold">Add review guidelines for {name}?</h3>
         <p className="mt-1 max-w-prose text-xs text-muted">
           Optional. Pick any text file with this repo's code standards, required patterns, security rules or PR
           expectations, and every {name} review will follow it.

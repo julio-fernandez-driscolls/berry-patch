@@ -22,11 +22,16 @@ export function Button({
 
 const BERRY_DOTS = ["bg-strawberry", "bg-raspberry", "bg-blackberry", "bg-blueberry"];
 
-export function Spinner({ className = "" }: { className?: string }) {
+export function Spinner({ className = "", size = "sm" }: { className?: string; size?: "sm" | "lg" }) {
+  const dot = size === "lg" ? "size-2.5" : "size-1.5";
   return (
-    <span role="status" aria-label="Loading" className={`berry-dots inline-flex items-center gap-[3px] ${className}`}>
+    <span
+      role="status"
+      aria-label="Loading"
+      className={`berry-dots inline-flex items-center ${size === "lg" ? "gap-[5px]" : "gap-[3px]"} ${className}`}
+    >
       {BERRY_DOTS.map((color) => (
-        <span key={color} className={`size-1.5 rounded-full ${color}`} />
+        <span key={color} className={`${dot} rounded-full ${color}`} />
       ))}
     </span>
   );

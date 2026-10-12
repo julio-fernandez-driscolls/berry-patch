@@ -28,6 +28,8 @@ export class PrReviewController implements vscode.Disposable {
   private fetchedAt = "";
   private user: string | null = null;
   private readonly inFlight = new Map<string, AbortController>();
+  /** PRs with a post to GitHub in progress, so a second click can't duplicate the review. */
+  private readonly posting = new Set<string>();
   private readonly statusBar: vscode.StatusBarItem;
   private readonly guidelines: GuidelineStore;
   private readonly disposables: vscode.Disposable[] = [];
@@ -184,6 +186,10 @@ export class PrReviewController implements vscode.Disposable {
     this.inFlight.set(prKey, abort);
     const progress = (stage: string) => this.post({ type: "reviewProgress", prKey, stage });
 
+    // Drop the previous result up front: it is about to be replaced, and keeping a posted
+    // review around would let it be posted a second time.
+    await this.forgetReview(prKey);
+
     try {
       const guidelines = await this.guidelines.read(`${pr.owner}/${pr.repo}`);
       const gh = await this.github(true);
@@ -226,6 +232,9 @@ export class PrReviewController implements vscode.Disposable {
     const review = this.savedReviews()[prKey];
     if (!pr || !review) return;
 
+    if (review.postedUrl) return this.warnAlreadyPosted(prKey, review.postedUrl);
+    if (this.posting.has(prKey)) return;
+
     const selected = review.findings.filter((f) => findingIds.includes(f.id));
     const inline = selected.filter((f) => f.commentable);
     const general = selected.filter((f) => !f.commentable);
@@ -241,6 +250,15 @@ export class PrReviewController implements vscode.Disposable {
     );
     if (choice !== "Post review") return;
 
+    // Re-check after the dialog: it is modal, but the review may have been posted or re-run
+    // while it was open.
+    const current = this.savedReviews()[prKey];
+    if (!current || current.reviewedAt !== review.reviewedAt) return;
+    if (current.postedUrl) return this.warnAlreadyPosted(prKey, current.postedUrl);
+    if (this.posting.has(prKey)) return;
+
+    this.posting.add(prKey);
+    this.post({ type: "postState", prKey, posting: true });
     try {
       const gh = await this.github(true);
       if (!gh) throw new Error("Not signed in to GitHub.");
@@ -285,7 +303,19 @@ export class PrReviewController implements vscode.Disposable {
       });
     } catch (err) {
       vscode.window.showErrorMessage(`Failed to post review: ${errorMessage(err)}`);
+    } finally {
+      this.posting.delete(prKey);
+      this.post({ type: "postState", prKey, posting: false });
     }
+  }
+
+  private async warnAlreadyPosted(prKey: string, url: string): Promise<void> {
+    const choice = await vscode.window.showWarningMessage(
+      `This review was already posted to ${prKey}.`,
+      { modal: true, detail: "Re-run the review if you want to post a fresh one." },
+      "Open on GitHub",
+    );
+    if (choice) await vscode.env.openExternal(vscode.Uri.parse(url));
   }
 
   private async openFile(file: string, line: number | null): Promise<void> {
@@ -357,6 +387,13 @@ export class PrReviewController implements vscode.Disposable {
         .slice(0, 100),
     );
     await this.context.globalState.update(REVIEWS_STATE, trimmed);
+  }
+
+  private async forgetReview(prKey: string): Promise<void> {
+    const { [prKey]: removed, ...rest } = this.savedReviews();
+    if (!removed) return;
+    await this.context.globalState.update(REVIEWS_STATE, rest);
+    this.post({ type: "reviews", reviews: rest });
   }
 
   private schedulePolling(): void {

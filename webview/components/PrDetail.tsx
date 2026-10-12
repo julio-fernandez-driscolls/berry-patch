@@ -18,12 +18,13 @@ interface Props {
   pr: PullRequestSummary;
   review?: ReviewResult;
   job?: ReviewJob;
+  posting: boolean;
   guidelines: Record<string, RepoGuideline | null> | null;
   engineLabel: string;
   onBack: () => void;
 }
 
-export function PrDetail({ pr, review, job, guidelines, engineLabel, onBack }: Props) {
+export function PrDetail({ pr, review, job, posting, guidelines, engineLabel, onBack }: Props) {
   const running = Boolean(job && !job.error);
   const repo = `${pr.owner}/${pr.repo}`;
 
@@ -61,37 +62,53 @@ export function PrDetail({ pr, review, job, guidelines, engineLabel, onBack }: P
           <Button variant="secondary" onClick={() => send({ type: "openExternal", url: pr.url })}>
             Open on GitHub
           </Button>
-          {running && (
-            <span className="flex items-center gap-2 text-xs text-muted">
-              <Spinner /> {job?.stage ?? "Starting…"}
-            </span>
-          )}
         </div>
         {job?.error && <p className="mt-2 text-xs text-error">{job.error}</p>}
       </div>
 
-      {review ? (
+      {running ? (
+        <ReviewRunning stage={job?.stage} engineLabel={engineLabel} />
+      ) : review ? (
         // Re-mount when a new review arrives so selection resets to its defaults.
-        <ReviewBody key={review.reviewedAt} pr={pr} review={review} />
+        <ReviewBody key={review.reviewedAt} pr={pr} review={review} posting={posting} />
       ) : (
-        !running && (
-          <p className="px-5 py-8 text-xs text-muted">
-            No review yet. {engineLabel} will read the full diff and flag bugs, security issues and risky changes.
-            Nothing is posted to GitHub until you choose findings and confirm.
-          </p>
-        )
+        <p className="px-5 py-8 text-xs text-muted">
+          No review yet. {engineLabel} will read the full diff and flag bugs, security issues and risky changes.
+          Nothing is posted to GitHub until you choose findings and confirm.
+        </p>
       )}
     </div>
   );
 }
 
-function ReviewBody({ pr, review }: { pr: PullRequestSummary; review: ReviewResult }) {
+/** Occupies the body while a review runs, so the previous result never sits under a stale header. */
+function ReviewRunning({ stage, engineLabel }: { stage?: string; engineLabel: string }) {
+  return (
+    <div className="flex flex-col items-center px-5 py-14 text-center">
+      <Spinner size="lg" />
+      <p className="mt-4 text-[13px] font-medium">{stage ?? "Starting…"}</p>
+      <p className="mt-1 max-w-xs text-xs text-balance text-muted">
+        {engineLabel} is reading the full diff. Findings will appear here when it finishes.
+      </p>
+    </div>
+  );
+}
+
+function ReviewBody({
+  pr,
+  review,
+  posting,
+}: {
+  pr: PullRequestSummary;
+  review: ReviewResult;
+  posting: boolean;
+}) {
   const [severityFilter, setSeverityFilter] = useState<Set<Severity>>(new Set(SEVERITIES));
   const [selected, setSelected] = useState<Set<string>>(
     () => new Set(review.findings.filter((f) => f.severity !== "nit").map((f) => f.id)),
   );
-  // Tracks the collapsed ones so findings start expanded.
-  const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
+  // Findings start collapsed so a long review stays scannable; the list remounts per review.
+  const [collapsed, setCollapsed] = useState<Set<string>>(() => new Set(review.findings.map((f) => f.id)));
 
   const counts = useMemo(() => {
     const c: Record<Severity, number> = { critical: 0, major: 0, minor: 0, nit: 0 };
@@ -192,7 +209,7 @@ function ReviewBody({ pr, review }: { pr: PullRequestSummary; review: ReviewResu
         </ul>
       </section>
 
-      <PostReview pr={pr} review={review} selectedIds={[...selected]} />
+      <PostReview pr={pr} review={review} selectedIds={[...selected]} posting={posting} />
     </div>
   );
 }
@@ -276,10 +293,12 @@ function PostReview({
   pr,
   review,
   selectedIds,
+  posting,
 }: {
   pr: PullRequestSummary;
   review: ReviewResult;
   selectedIds: string[];
+  posting: boolean;
 }) {
   const defaultEvent: ReviewEvent =
     review.verdict === "request_changes" ? "REQUEST_CHANGES" : review.verdict === "approve" ? "APPROVE" : "COMMENT";
@@ -292,17 +311,29 @@ function PostReview({
     { id: "APPROVE", label: "Approve" },
   ];
 
+  // Once posted, the form is replaced rather than disabled: this review can only go to GitHub once.
+  if (review.postedUrl) {
+    return (
+      <section className="rounded-sm border border-border p-3">
+        <h3 className="mb-2 text-xs font-semibold tracking-wide uppercase text-muted">Posted to GitHub</h3>
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
+          <Pill className="bg-ok/20 text-ok">Posted</Pill>
+          <span className="text-muted">Re-run the review to post a new one.</span>
+          <Button
+            variant="ghost"
+            className="ml-auto"
+            onClick={() => send({ type: "openExternal", url: review.postedUrl! })}
+          >
+            View review
+          </Button>
+        </div>
+      </section>
+    );
+  }
+
   return (
     <section className="rounded-sm border border-border p-3">
       <h3 className="mb-2 text-xs font-semibold tracking-wide uppercase text-muted">Post to GitHub</h3>
-      {review.postedUrl && (
-        <p className="mb-2 text-xs">
-          Posted ·{" "}
-          <Button variant="ghost" onClick={() => send({ type: "openExternal", url: review.postedUrl! })}>
-            View review
-          </Button>
-        </p>
-      )}
       <textarea
         value={body}
         onChange={(e) => setBody(e.target.value)}
@@ -326,11 +357,13 @@ function PostReview({
             </label>
           ))}
         </fieldset>
+        {posting && <Spinner className="ml-auto" />}
         <Button
-          className="ml-auto"
+          className={posting ? "" : "ml-auto"}
+          disabled={posting}
           onClick={() => send({ type: "postReview", prKey: pr.key, event, body, findingIds: selectedIds })}
         >
-          Post review ({selectedIds.length} finding{selectedIds.length === 1 ? "" : "s"})
+          {posting ? "Posting…" : `Post review (${selectedIds.length} finding${selectedIds.length === 1 ? "" : "s"})`}
         </Button>
       </div>
     </section>

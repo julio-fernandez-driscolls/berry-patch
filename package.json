@@ -2,9 +2,13 @@
   "name": "driscolls-berry-patch",
   "displayName": "Driscoll's Berry Patch",
   "description": "Pick the GitHub pull requests waiting on you and review them with Codex. Only the finest patches make it to main.",
-  "version": "0.2.0",
+  "version": "0.4.0",
   "publisher": "driscolls",
   "private": true,
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/julio-fernandez-driscolls/berry-patch.git"
+  },
   "icon": "media/icon.png",
   "galleryBanner": {
     "color": "#FFCD00",
@@ -137,7 +141,7 @@
     "build:webview": "esbuild webview/main.tsx --bundle --platform=browser --format=esm --target=chrome120 --jsx=automatic --loader:.css=empty --loader:.svg=text --minify --outfile=dist/webview/webview.js && tailwindcss -i webview/index.css -o dist/webview/webview.css --minify",
     "typecheck": "tsc --noEmit --strict --skipLibCheck --target es2022 --module esnext --moduleResolution bundler --jsx react-jsx --lib es2022,dom,dom.iterable src/extension.ts webview/main.tsx webview/env.d.ts",
     "test": "node --test tests/",
-    "package": "npm run build && vsce package --allow-missing-repository"
+    "package": "npm run build && vsce package"
   },
   "devDependencies": {
     "@tailwindcss/cli": "^4.3.3",

@@ -27,6 +27,8 @@ interface State {
   error: string | null;
   reviews: Record<string, ReviewResult>;
   jobs: Record<string, ReviewJob>;
+  /** PRs with a post to GitHub in flight. */
+  posting: Record<string, boolean>;
   /** Null until the host reports it, so repos don't flash the "add guidelines" prompt on load. */
   guidelines: Record<string, RepoGuideline | null> | null;
 }
@@ -40,6 +42,7 @@ const initial: State = {
   error: null,
   reviews: {},
   jobs: {},
+  posting: {},
   guidelines: null,
 };
 
@@ -68,6 +71,8 @@ function reducer(state: State, msg: HostToWebview): State {
       if (!review) return state;
       return { ...state, reviews: { ...state.reviews, [msg.prKey]: { ...review, postedUrl: msg.url } } };
     }
+    case "postState":
+      return { ...state, posting: { ...state.posting, [msg.prKey]: msg.posting } };
     case "guidelines":
       return { ...state, guidelines: msg.guidelines };
   }
@@ -137,6 +142,7 @@ export function App() {
               pr={selected}
               review={state.reviews[selected.key]}
               job={state.jobs[selected.key]}
+              posting={Boolean(state.posting[selected.key])}
               guidelines={state.guidelines}
               engineLabel={engineLabel}
               onBack={() => setSelectedKey(null)}

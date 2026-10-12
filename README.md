@@ -2,6 +2,8 @@
 
 Pick the GitHub pull requests waiting on you and review them with Codex. Only the finest patches make it to main.
 
+See [GUIDE.md](GUIDE.md) for the full walkthrough to share with teammates.
+
 ## Install
 
 1. Grab the `driscolls-berry-patch-<version>.vsix` file.
