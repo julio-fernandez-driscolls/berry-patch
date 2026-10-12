@@ -39,6 +39,22 @@ export interface RepoGuideline {
   found: boolean;
 }
 
+export type MergeMethod = "merge" | "squash" | "rebase";
+
+export interface MergeInfo {
+  /** The viewer has push access to the base repository. */
+  canMerge: boolean;
+  /** GitHub will accept a merge right now. */
+  ready: boolean;
+  /** Why merging is unavailable, or null when ready. */
+  reason: string | null;
+  /** Merge methods the repository allows, in GitHub's own order. */
+  methods: MergeMethod[];
+  merged: boolean;
+  /** Head commit the merge is pinned to, so it can't land newer unreviewed commits. */
+  headSha: string;
+}
+
 export interface PullRequestSummary {
   /** Stable key: "owner/repo#number". */
   key: string;
@@ -100,6 +116,10 @@ export type HostToWebview =
   | { type: "reviewFailed"; prKey: string; message: string }
   | { type: "reviewPosted"; prKey: string; url: string }
   | { type: "postState"; prKey: string; posting: boolean }
+  | { type: "archived"; keys: string[] }
+  | { type: "mergeInfo"; prKey: string; info: MergeInfo | null }
+  | { type: "mergeState"; prKey: string; merging: boolean }
+  | { type: "merged"; prKey: string }
   // Keyed by "owner/repo". `null` means the user chose to review that repo without guidelines.
   | { type: "guidelines"; guidelines: Record<string, RepoGuideline | null> };
 
@@ -117,6 +137,10 @@ export type WebviewToHost =
   | { type: "chooseGuideline"; repo: string }
   | { type: "openGuideline"; repo: string }
   | { type: "clearGuideline"; repo: string }
+  | { type: "archive"; prKey: string }
+  | { type: "unarchive"; prKey: string }
+  | { type: "checkMerge"; prKey: string }
+  | { type: "merge"; prKey: string; method: MergeMethod }
   | {
       type: "postReview";
       prKey: string;

@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import type {
   Finding,
+  MergeInfo,
   PullRequestSummary,
   RepoGuideline,
   ReviewEvent,
@@ -10,7 +11,19 @@ import type {
 import type { ReviewJob } from "../App";
 import { send, timeAgo } from "../vscode";
 import { RepoGuidelines } from "./Guidelines";
-import { Button, Chevron, DocIcon, Md, Pill, SeverityPill, Spinner, VerdictPill } from "./ui";
+import { MergeCard } from "./MergeCard";
+import {
+  ArchiveIcon,
+  Button,
+  Chevron,
+  DocIcon,
+  Md,
+  Pill,
+  RestoreIcon,
+  SeverityPill,
+  Spinner,
+  VerdictPill,
+} from "./ui";
 
 const SEVERITIES: Severity[] = ["critical", "major", "minor", "nit"];
 
@@ -19,12 +32,26 @@ interface Props {
   review?: ReviewResult;
   job?: ReviewJob;
   posting: boolean;
+  archived: boolean;
+  merge: MergeInfo | null | undefined;
+  merging: boolean;
   guidelines: Record<string, RepoGuideline | null> | null;
   engineLabel: string;
   onBack: () => void;
 }
 
-export function PrDetail({ pr, review, job, posting, guidelines, engineLabel, onBack }: Props) {
+export function PrDetail({
+  pr,
+  review,
+  job,
+  posting,
+  archived,
+  merge,
+  merging,
+  guidelines,
+  engineLabel,
+  onBack,
+}: Props) {
   const running = Boolean(job && !job.error);
   const repo = `${pr.owner}/${pr.repo}`;
 
@@ -62,8 +89,17 @@ export function PrDetail({ pr, review, job, posting, guidelines, engineLabel, on
           <Button variant="secondary" onClick={() => send({ type: "openExternal", url: pr.url })}>
             Open on GitHub
           </Button>
+          <Button
+            variant="secondary"
+            className="ml-auto inline-flex items-center"
+            onClick={() => send({ type: archived ? "unarchive" : "archive", prKey: pr.key })}
+          >
+            {archived ? <RestoreIcon className="mr-1.5 size-3.5" /> : <ArchiveIcon className="mr-1.5 size-3.5" />}
+            {archived ? "Restore" : "Archive"}
+          </Button>
         </div>
         {job?.error && <p className="mt-2 text-xs text-error">{job.error}</p>}
+        <MergeCard pr={pr} info={merge} merging={merging} />
       </div>
 
       {running ? (

@@ -66,6 +66,50 @@ export function DocIcon({ className = "" }: { className?: string }) {
   );
 }
 
+function Glyph({ className = "", children }: { className?: string; children: ReactNode }) {
+  return (
+    <svg
+      viewBox="0 0 16 16"
+      aria-hidden="true"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.3"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={`shrink-0 ${className}`}
+    >
+      {children}
+    </svg>
+  );
+}
+
+export function ArchiveIcon({ className = "" }: { className?: string }) {
+  return (
+    <Glyph className={className}>
+      <path d="M1.75 3.25h12.5v2.5H1.75zM3 5.75v6.5a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1v-6.5M6.25 8.5h3.5" />
+    </Glyph>
+  );
+}
+
+export function RestoreIcon({ className = "" }: { className?: string }) {
+  return (
+    <Glyph className={className}>
+      <path d="M1.75 3.25h12.5v2.5H1.75zM3 5.75v6.5a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1v-6.5M8 11V8m0 0L6.25 9.75M8 8l1.75 1.75" />
+    </Glyph>
+  );
+}
+
+export function MergeIcon({ className = "" }: { className?: string }) {
+  return (
+    <Glyph className={className}>
+      <circle cx="4.25" cy="3.5" r="1.75" />
+      <circle cx="4.25" cy="12.5" r="1.75" />
+      <circle cx="11.75" cy="8" r="1.75" />
+      <path d="M4.25 5.25v5.5M6 8h4" />
+    </Glyph>
+  );
+}
+
 export function Chevron({ open, className = "" }: { open: boolean; className?: string }) {
   return (
     <svg

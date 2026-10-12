@@ -2,6 +2,7 @@ import { useEffect, useMemo, useReducer, useState } from "react";
 import type {
   EngineState,
   HostToWebview,
+  MergeInfo,
   PullRequestSummary,
   RepoGuideline,
   ReviewResult,
@@ -29,6 +30,10 @@ interface State {
   jobs: Record<string, ReviewJob>;
   /** PRs with a post to GitHub in flight. */
   posting: Record<string, boolean>;
+  archived: string[];
+  /** Undefined until checked; null when mergeability couldn't be determined. */
+  merge: Record<string, MergeInfo | null>;
+  merging: Record<string, boolean>;
   /** Null until the host reports it, so repos don't flash the "add guidelines" prompt on load. */
   guidelines: Record<string, RepoGuideline | null> | null;
 }
@@ -43,6 +48,9 @@ const initial: State = {
   reviews: {},
   jobs: {},
   posting: {},
+  archived: [],
+  merge: {},
+  merging: {},
   guidelines: null,
 };
 
@@ -73,6 +81,16 @@ function reducer(state: State, msg: HostToWebview): State {
     }
     case "postState":
       return { ...state, posting: { ...state.posting, [msg.prKey]: msg.posting } };
+    case "archived":
+      return { ...state, archived: msg.keys };
+    case "mergeInfo":
+      return { ...state, merge: { ...state.merge, [msg.prKey]: msg.info } };
+    case "mergeState":
+      return { ...state, merging: { ...state.merging, [msg.prKey]: msg.merging } };
+    case "merged": {
+      const { [msg.prKey]: _merged, ...merge } = state.merge;
+      return { ...state, merge, prs: state.prs.filter((p) => p.key !== msg.prKey) };
+    }
     case "guidelines":
       return { ...state, guidelines: msg.guidelines };
   }
@@ -94,6 +112,13 @@ export function App() {
     [state.prs, selectedKey],
   );
 
+  const archived = useMemo(() => new Set(state.archived), [state.archived]);
+
+  // Mergeability is only worth a round trip for the PR actually on screen.
+  useEffect(() => {
+    if (selectedKey) send({ type: "checkMerge", prKey: selectedKey });
+  }, [selectedKey]);
+
   const engineLabel =
     state.engines?.statuses.find((s) => s.id === state.engines?.active)?.label ?? "the review engine";
 
@@ -106,7 +131,8 @@ export function App() {
         </h1>
         <span className="text-xs text-muted">
           {state.user ? `@${state.user} · ` : ""}
-          {state.prs.length} open PR{state.prs.length === 1 ? "" : "s"}
+          {state.prs.length - archived.size} open PR{state.prs.length - archived.size === 1 ? "" : "s"}
+          {archived.size ? ` · ${archived.size} archived` : ""}
           {state.fetchedAt ? ` · updated ${timeAgo(state.fetchedAt)}` : ""}
         </span>
         <div className="ml-auto flex items-center gap-2">
@@ -131,6 +157,7 @@ export function App() {
             prs={state.prs}
             reviews={state.reviews}
             jobs={state.jobs}
+            archived={archived}
             loading={state.loading}
             selectedKey={selectedKey}
             onSelect={setSelectedKey}
@@ -143,6 +170,9 @@ export function App() {
               review={state.reviews[selected.key]}
               job={state.jobs[selected.key]}
               posting={Boolean(state.posting[selected.key])}
+              archived={archived.has(selected.key)}
+              merge={state.merge[selected.key]}
+              merging={Boolean(state.merging[selected.key])}
               guidelines={state.guidelines}
               engineLabel={engineLabel}
               onBack={() => setSelectedKey(null)}

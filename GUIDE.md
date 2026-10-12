@@ -20,7 +20,11 @@ A VS Code extension that collects the GitHub pull requests waiting on you and dr
 | Explanation | The concrete scenario where the code breaks |
 | Suggestion | A proposed fix, often as a code snippet |
 
-**Keeps you in control.** Nothing reaches GitHub until you say so. Every finding has a checkbox, you can edit the summary text, and you choose whether the review is a Comment, Request changes, or Approve. A confirmation dialog appears before anything is posted.
+**Keeps you in control.** Nothing reaches GitHub until you say so. Every finding has a checkbox, you can edit the summary text, and you choose whether the review is a Comment, Request changes, or Approve. A confirmation dialog appears before anything is posted, and each review can only be posted once.
+
+**Merges, if you're allowed to.** When you have push access and the PR is genuinely ready, you can merge it without leaving the editor. See [Merging](#merging).
+
+**Tidies your queue.** Archive PRs you're done with to get them out of your list, and restore them later. See [Archiving](#archiving).
 
 **Follows your repo's rules.** Each repository can have its own guideline file so reviews match that codebase's standards. See [Review guidelines](#review-guidelines) below.
 
@@ -70,6 +74,33 @@ Sideloaded extensions don't auto-update. When a new `.vsix` is shared, install i
 7. In **Post to GitHub**, edit the summary, choose Comment / Request changes / Approve, and click **Post review**. Confirm the dialog.
 
 Findings pointing at lines inside the diff become inline comments. Anything else is appended to the review body under "Additional notes".
+
+A review can only be posted once. After posting, the form is replaced by a **Posted** badge and a link to the review on GitHub. To post again, re-run the review — which also clears the previous findings.
+
+### Archiving
+
+Use **Archive** to take a PR out of your working list without touching anything on GitHub. It's purely local and private to you.
+
+- Hover any row in the list and click the archive icon in its top-right corner, or use the **Archive** button in the PR detail header.
+- Archived PRs move to the **Archived** tab and stop counting toward the 🍓 badge in your status bar and the "open PRs" total.
+- Open the **Archived** tab and click the restore icon, or **Restore** in the detail header, to bring one back.
+- When a PR is merged or closed and leaves your GitHub queue, it's dropped from the archive automatically. If someone later requests your review on it again, it returns as a normal unarchived PR.
+
+### Merging
+
+The **Merge** card appears in the PR detail header only when GitHub says you have push access to the repository. Reviewers without merge rights never see it.
+
+The card shows one of two states:
+
+- **Ready to merge** — green badge, with a method dropdown offering only the methods that repo allows (merge commit, squash, rebase).
+- **Not ready** — an amber badge and the specific reason: conflicts, a draft PR, branch protection with unmet reviews or checks, a branch behind its base, or GitHub still computing mergeability.
+
+Clicking merge opens a confirmation dialog naming the target branch and the PR size. Two safeguards apply:
+
+- Permissions and mergeability are re-checked against GitHub immediately before the merge, not taken from what the panel last displayed.
+- The merge is pinned to the exact commit you reviewed. If someone pushes while you're deciding, GitHub rejects it rather than merging unreviewed code.
+
+After a successful merge the PR disappears from your list.
 
 ### Review guidelines
 
@@ -154,6 +185,12 @@ GitHub rejects inline comments on lines outside the current diff. Re-run the rev
 **Clicking a `file:line` says it isn't in the workspace.**
 The file has to be open in your VS Code workspace. Open the repo the PR belongs to.
 
+**The Merge card isn't showing.**
+It only appears when GitHub reports push access on that repository. If you believe you have it, click **Refresh** so permissions are re-fetched.
+
+**"Failed to merge: Head branch was modified. Review and try the merge again."**
+Someone pushed a commit after the page loaded. The merge is deliberately pinned to the commit you reviewed, so re-run the review on the new commits before merging.
+
 ---
 
 ## Privacy
@@ -161,4 +198,5 @@ The file has to be open in your VS Code workspace. Open the repo the PR belongs 
 - Your GitHub sign-in goes through VS Code's built-in account system. The extension never stores a token.
 - PR diffs are sent to whichever engine you select — Copilot uses your organization's existing entitlement.
 - Reviews are cached locally (the 100 most recent) so you don't re-run them. Guideline file paths are also stored locally.
-- The extension never posts to GitHub without your explicit confirmation.
+- Archived PRs are a local preference. Nothing is sent to GitHub and teammates can't see what you've archived.
+- The extension never posts or merges without your explicit confirmation.

@@ -1,4 +1,4 @@
-import type { PrReason, PullRequestSummary, ReviewEvent } from "./shared/protocol";
+import type { MergeMethod, PrReason, PullRequestSummary, ReviewEvent } from "./shared/protocol";
 
 const API = "https://api.github.com";
 
@@ -24,6 +24,19 @@ export interface PullDetails {
   additions: number;
   deletions: number;
   changed_files: number;
+  draft?: boolean;
+  merged?: boolean;
+  /** Null while GitHub is still computing it. */
+  mergeable?: boolean | null;
+  /** clean, dirty, blocked, behind, unstable, draft, or unknown. */
+  mergeable_state?: string;
+}
+
+export interface RepoDetails {
+  permissions?: { admin?: boolean; maintain?: boolean; push?: boolean };
+  allow_merge_commit?: boolean;
+  allow_squash_merge?: boolean;
+  allow_rebase_merge?: boolean;
 }
 
 export interface PullFile {
@@ -143,6 +156,23 @@ export class GitHubClient {
 
   getPull(owner: string, repo: string, number: number): Promise<PullDetails> {
     return this.request<PullDetails>(`/repos/${owner}/${repo}/pulls/${number}`);
+  }
+
+  getRepo(owner: string, repo: string): Promise<RepoDetails> {
+    return this.request<RepoDetails>(`/repos/${owner}/${repo}`);
+  }
+
+  /** Merges the PR. `sha` pins it to the reviewed head, so GitHub rejects it if new commits landed. */
+  mergePull(
+    owner: string,
+    repo: string,
+    number: number,
+    merge: { sha: string; merge_method: MergeMethod },
+  ): Promise<{ merged: boolean; message: string }> {
+    return this.request(`/repos/${owner}/${repo}/pulls/${number}/merge`, {
+      method: "PUT",
+      body: JSON.stringify(merge),
+    });
   }
 
   /** All changed files with patches. GitHub caps this endpoint at 3000 files. */

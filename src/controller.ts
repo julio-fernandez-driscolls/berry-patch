@@ -4,6 +4,7 @@ import { copilotRunner, copilotStatus } from "./copilot";
 import * as vscode from "vscode";
 import { GitHubClient, type ReviewComment } from "./github";
 import { GuidelineStore } from "./guidelines";
+import { mergeInfo } from "./merge";
 import { ReviewPanel } from "./panel";
 import { reviewPullRequest, type ReviewRunner } from "./reviewer";
 import type {
@@ -11,11 +12,18 @@ import type {
   EngineState,
   Finding,
   HostToWebview,
+  MergeMethod,
   PullRequestSummary,
   ReviewResult,
   WebviewToHost,
 } from "./shared/protocol";
 const REVIEWS_STATE = "prReviewer.reviews";
+const ARCHIVED_STATE = "prReviewer.archived";
+const MERGE_LABEL: Record<MergeMethod, string> = {
+  merge: "Merge commit",
+  squash: "Squash and merge",
+  rebase: "Rebase and merge",
+};
 const SEVERITY_LABEL: Record<Finding["severity"], string> = {
   critical: "🔴 Critical",
   major: "🟠 Major",
@@ -30,6 +38,7 @@ export class PrReviewController implements vscode.Disposable {
   private readonly inFlight = new Map<string, AbortController>();
   /** PRs with a post to GitHub in progress, so a second click can't duplicate the review. */
   private readonly posting = new Set<string>();
+  private readonly merging = new Set<string>();
   private readonly statusBar: vscode.StatusBarItem;
   private readonly guidelines: GuidelineStore;
   private readonly disposables: vscode.Disposable[] = [];
@@ -69,7 +78,7 @@ export class PrReviewController implements vscode.Disposable {
         assigned: cfg.get("includeAssigned", true),
       });
       this.fetchedAt = new Date().toISOString();
-      this.statusBar.text = `$(berry-patch-strawberry) ${this.prs.length} PR${this.prs.length === 1 ? "" : "s"}`;
+      await this.pruneArchived();
       await this.pushState();
       this.post({ type: "prs", prs: this.prs, fetchedAt: this.fetchedAt });
     } catch (err) {
@@ -133,6 +142,7 @@ export class PrReviewController implements vscode.Disposable {
       case "ready":
         // Before engine state, which can take seconds to probe Codex.
         await this.pushGuidelines();
+        this.post({ type: "archived", keys: this.archivedKeys() });
         await this.pushState();
         this.post({ type: "reviews", reviews: this.savedReviews() });
         if (this.prs.length) this.post({ type: "prs", prs: this.prs, fetchedAt: this.fetchedAt });
@@ -173,6 +183,14 @@ export class PrReviewController implements vscode.Disposable {
       case "clearGuideline":
         await this.guidelines.clear(msg.repo);
         return this.pushGuidelines();
+      case "archive":
+        return this.setArchived(msg.prKey, true);
+      case "unarchive":
+        return this.setArchived(msg.prKey, false);
+      case "checkMerge":
+        return this.checkMerge(msg.prKey);
+      case "merge":
+        return this.merge(msg.prKey, msg.method);
       case "postReview":
         return this.postReview(msg.prKey, msg.event, msg.body, msg.findingIds);
     }
@@ -316,6 +334,103 @@ export class PrReviewController implements vscode.Disposable {
       "Open on GitHub",
     );
     if (choice) await vscode.env.openExternal(vscode.Uri.parse(url));
+  }
+
+  // ---------- Archive ----------
+
+  private archivedKeys(): string[] {
+    return this.context.globalState.get<string[]>(ARCHIVED_STATE, []);
+  }
+
+  private async setArchived(prKey: string, archived: boolean): Promise<void> {
+    const keys = new Set(this.archivedKeys());
+    if (archived) keys.add(prKey);
+    else keys.delete(prKey);
+    await this.storeArchived([...keys]);
+  }
+
+  /** Forgets PRs that have left the queue, so the archive doesn't grow without bound. */
+  private async pruneArchived(): Promise<void> {
+    const open = new Set(this.prs.map((p) => p.key));
+    await this.storeArchived(this.archivedKeys().filter((key) => open.has(key)));
+  }
+
+  private async storeArchived(keys: string[]): Promise<void> {
+    await this.context.globalState.update(ARCHIVED_STATE, keys);
+    this.post({ type: "archived", keys });
+    const active = this.prs.filter((p) => !keys.includes(p.key)).length;
+    this.statusBar.text = `$(berry-patch-strawberry) ${active} PR${active === 1 ? "" : "s"}`;
+  }
+
+  // ---------- Merge ----------
+
+  private async checkMerge(prKey: string): Promise<void> {
+    const pr = this.prs.find((p) => p.key === prKey);
+    if (!pr) return;
+    try {
+      const gh = await this.github(false);
+      if (!gh) return this.post({ type: "mergeInfo", prKey, info: null });
+      const [pull, repo] = await Promise.all([
+        gh.getPull(pr.owner, pr.repo, pr.number),
+        gh.getRepo(pr.owner, pr.repo),
+      ]);
+      this.post({ type: "mergeInfo", prKey, info: mergeInfo(pull, repo) });
+    } catch {
+      // Merging is an extra; a failure here must not disturb the review flow.
+      this.post({ type: "mergeInfo", prKey, info: null });
+    }
+  }
+
+  private async merge(prKey: string, method: MergeMethod): Promise<void> {
+    const pr = this.prs.find((p) => p.key === prKey);
+    if (!pr || this.merging.has(prKey)) return;
+
+    try {
+      const gh = await this.github(true);
+      if (!gh) throw new Error("Not signed in to GitHub.");
+
+      // Re-read rather than trusting the panel: permissions, checks and commits all move.
+      const [pull, repo] = await Promise.all([
+        gh.getPull(pr.owner, pr.repo, pr.number),
+        gh.getRepo(pr.owner, pr.repo),
+      ]);
+      const info = mergeInfo(pull, repo);
+      this.post({ type: "mergeInfo", prKey, info });
+      if (!info.canMerge) throw new Error(`You don't have permission to merge in ${pr.owner}/${pr.repo}.`);
+      if (!info.ready) throw new Error(info.reason ?? "This pull request can't be merged right now.");
+      if (!info.methods.includes(method)) throw new Error(`${pr.repo} doesn't allow ${MERGE_LABEL[method].toLowerCase()}.`);
+
+      const choice = await vscode.window.showWarningMessage(
+        `${MERGE_LABEL[method]} ${prKey} into ${pull.base.ref}?`,
+        {
+          modal: true,
+          detail: `${pull.changed_files} file(s), +${pull.additions} -${pull.deletions}. This merges the pull request on GitHub for everyone and can't be undone from here.`,
+        },
+        MERGE_LABEL[method],
+      );
+      if (choice !== MERGE_LABEL[method]) return;
+
+      this.merging.add(prKey);
+      this.post({ type: "mergeState", prKey, merging: true });
+      try {
+        const res = await gh.mergePull(pr.owner, pr.repo, pr.number, {
+          sha: pull.head.sha,
+          merge_method: method,
+        });
+        if (!res.merged) throw new Error(res.message || "GitHub declined the merge.");
+        this.post({ type: "merged", prKey });
+        void vscode.window.showInformationMessage(`Merged ${prKey}.`, "Open on GitHub").then((a) => {
+          if (a) void vscode.env.openExternal(vscode.Uri.parse(pr.url));
+        });
+        await this.refresh(false);
+      } finally {
+        this.merging.delete(prKey);
+        this.post({ type: "mergeState", prKey, merging: false });
+      }
+    } catch (err) {
+      vscode.window.showErrorMessage(`Failed to merge ${prKey}: ${errorMessage(err)}`);
+      void this.checkMerge(prKey);
+    }
   }
 
   private async openFile(file: string, line: number | null): Promise<void> {
